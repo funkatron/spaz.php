@@ -1,37 +1,33 @@
 <?php
-// require("../db.conf.php");
-
-
-
 define('MAX_REDIRECTS', 10);
-define('ONE_HOUR', 1000 * 60 * 60);
+define('ONE_HOUR', 1000 * 60);
 
-// $cache = new fCache;
+$cache = new fCache;
 
 if (isset($_GET['url'])) {
-	$passed_url = $_GET['url'];
+	$passed_url = htmlspecialchars($_GET['url'], ENT_QUOTES, 'UTF-8');
 	
 	$opts = array();
 	$opts['passed_url']   = $passed_url;
 	
-	// if ($cache_obj = $cache->get($opts['passed_url'])) {
-	// 	echo "<pre>"; var_dump("CACHED"); echo "</pre>";
-	// 	$json_obj = $cache_obj['val'];
-	// } else {
-		// echo "<pre>"; var_dump("NOT CACHED"); echo "</pre>";
+	if ($json_obj = $cache->get($opts['passed_url'])) {
+		// yay
+	} else {
 		$result = resolve($opts);
 
 		$json_obj = json_encode($result);
 
-		// $cache_obj->put($opts['passed_url'], $json_obj);
-	// }
+		$rs = $cache->put($opts['passed_url'], $json_obj);
+	}
 	
-	header("Content-Type: text/html");
+	header("Content-Type: application/json");
 	echo $json_obj;
 }
 
 
 function resolve($data) {
+	
+	if (!isset($data['redirects'])) { $data['redirects'] = 0; }
 	
 	try {
 		$req = new HttpRequest($data['passed_url'], HttpRequest::METH_HEAD);
@@ -40,76 +36,62 @@ function resolve($data) {
 		
 		$resp_code = $req->getResponseCode();
 		
+		
 		if ($resp_code >= 400 && $resp_code < 600) {
-			if ($redirects > MAX_REDIRECTS) {
-		
-				$data['error'] = 'http-error';
-				$data['error_message'] = $resp_code;
-				
-				return $data;
-		
-			} else if ($new_location = $req->getResponseHeader('location')) {
-		
-				$data['redirects']++;
-				$opts['passed_url'] = $new_location;
-				resolver($data);
-		
-			} else {
 
-				$data['error'] = 'redirect-error';
-				$data['error_message'] = 'couldn\'t find location header';
-				
-				return $data;
-		
-			}			
+			$data['error'] = 'http-error';
+			$data['error_message'] = $resp_code;
+			return $data;
+
 		} elseif ($resp_code >= 200 && $resp_code < 300) {
 			
 			$data['final_url'] = $req->getResponseInfo('effective_url');
 			$data['redirects'] = $req->getResponseInfo('redirect_count');
 			return $data;
 			
+		} else {
+			
+			$data['error'] = 'Unknown';
+			$data['error_message'] = 'Something didn\'t work, bro';
+			return $data;
+			
 		}
+		
 	} catch (HttpException $e) {
-		echo $ex;
+		
+		$data['error'] = $e->getCode();
+		$data['error_message'] = $e->getMessage();
+		return $data;
+		
 	}
 };
 
 
 /**
-* 
+* a little wrapper for apc caching
 */
-// class fCache {
-// 	
-// 	public function __construct() {
-// 		$this->mysqli_link = new mysqli(MYSQLI_HOSTNAME, MYSQLI_USERNAME, MYSQLI_PASSWORD, MYSQLI_DBNAME);
-// 	}
-// 	
-// 	public function put($key, $val, $expire=null) {
-// 		$sql = "INSERT INTO link_cache (key, val) VALUES (?, ?)";
-// 		$stmt = $this->mysqli_link->prepare($sql);
-// 		$stmt->bind_param("ss", md5($key), $val);
-// 		$rs = $stmt->execute();
-// 		$rows = $rs->affected_rows();
-// 		$rs->close();
-// 		return $rows;
-// 	}
-// 	
-// 	public function get($key) {
-// 		$sql = "SELECT val FROM link_cache WHERE key = '?'";
-// 		
-// 		$stmt = $this->mysqli_link->prepare($sql);
-// 		$stmt->bind_param("s", md5($key));
-// 		$rs = $stmt->execute();
-// 		
-// 		if ($rs-num_rows() > 0) {
-// 			$row = $rs->fetch_assoc();
-// 			$rs->close();
-// 			return $row;
-// 		}
-// 		$rs->close();
-// 		return false;
-// 	}
-// 
-// }
+class fCache {
+	
+	public function __construct() {
+	}
+	
+	public function put($key, $val, $expire=null) {
+		if (!isset($expire)) {
+			$expire = time()+(ONE_HOUR); // 1 hour from now
+		} else {
+			$expire = time()+($expire);
+		}
+		return apc_store($key, $val, $expire);
+	}
+	
+	public function get($key) {
+		return apc_fetch($key);
+	}
+
+	public function del($key) {
+		return apc_delete($key);
+	}
+
+}
 
 
