@@ -8,7 +8,7 @@ define('ONE_HOUR', 1000 * 60 * 60);
 
 // $cache = new fCache;
 
-if ($_GET['url']) {
+if (isset($_GET['url'])) {
 	$passed_url = $_GET['url'];
 	
 	$opts = array();
