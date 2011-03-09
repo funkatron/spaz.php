@@ -5,10 +5,18 @@ define('ONE_HOUR', 1000 * 60);
 $cache = new fCache;
 
 if (isset($_GET['url'])) {
-	$passed_url = htmlspecialchars($_GET['url'], ENT_QUOTES, 'UTF-8');
+	$passed_url = filter_input(INPUT_GET, 'url', FILTER_VALIDATE_URL);
 	
 	$opts = array();
-	$opts['passed_url']   = $passed_url;
+	
+	if (!$passed_url) {
+		$opts['error']   = 'invalid url';
+		$opts['error_message']   = 'invalid URL passed. Whoops!';
+		serve(json_encode($opts));
+	}
+	
+	$opts['passed_url'] = $passed_url;
+	
 	
 	if ($json_obj = $cache->get($opts['passed_url'])) {
 		// yay
@@ -20,9 +28,21 @@ if (isset($_GET['url'])) {
 		$rs = $cache->put($opts['passed_url'], $json_obj);
 	}
 	
-	header("Content-Type: application/json");
-	echo $json_obj;
+	serve($json_obj);
+
+} else {
+	
+	serve("false");
+
 }
+
+
+function serve($body_str) {
+	header("Content-Type: application/json");
+	echo $body_str;
+	die();
+}
+
 
 
 function resolve($data) {
@@ -35,7 +55,6 @@ function resolve($data) {
 		$req->send();
 		
 		$resp_code = $req->getResponseCode();
-		
 		
 		if ($resp_code >= 400 && $resp_code < 600) {
 
