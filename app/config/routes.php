@@ -16,10 +16,9 @@ use lithium\core\Environment;
  */
 Router::connect('/', array('Pages::view', 'args' => array('home')));
 
-/**
- * ...and connect the rest of 'Pages' controller's urls.
- */
-Router::connect('/pages/{:args}', 'Pages::view');
+// Router::connect('/url/resolve/{:addr:https?\:\/\/?.+}', 'Url::resolve');
+
+Router::connect('/url/resolve/{:args}', 'Url::resolve');
 
 /**
  * Connect the testing routes.
@@ -32,8 +31,8 @@ if (!Environment::is('production')) {
 /**
  * Finally, connect the default routes.
  */
-Router::connect('/{:controller}/{:action}/{:id:[0-9]+}.{:type}', array('id' => null));
-Router::connect('/{:controller}/{:action}/{:id:[0-9]+}');
-Router::connect('/{:controller}/{:action}/{:args}');
+// Router::connect('/{:controller}/{:action}/{:id:[0-9]+}.{:type}', array('id' => null));
+// Router::connect('/{:controller}/{:action}/{:id:[0-9]+}');
+// Router::connect('/{:controller}/{:action}/{:args}');
 
 ?>
